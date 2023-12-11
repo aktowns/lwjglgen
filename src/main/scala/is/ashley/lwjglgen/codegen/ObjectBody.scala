@@ -13,42 +13,28 @@ object TypeParamClauseGroup {
   def apply(clauses: TypeParamClause*): TypeParamClauseGroup = TypeParamClauseGroup(clauses.toList)
 }
 
-sealed trait ObjectBody
+sealed trait ObjectBody extends ObjectBodyNode
 object ObjectBody {
-  case class Val(name: Name, typ: ScalaType, value: Name, comment: Option[ScalaComment] = None) extends ObjectBody
+  case class Val(name: Name, typ: ScalaType, value: Name, comment: Option[ScalaComment] = None) extends ObjectBody {
+    override def toDoc: Doc = {
+      val commentDoc = comment.map(_.toDoc + Doc.line).getOrElse(Doc.empty)
+      commentDoc + Doc.text("val") + Doc.space + name.toDoc + Doc.text(": ") + typ.toDoc + Doc.text(
+        " = "
+      ) + value.toDoc
+    }
+  }
 
   case class FunDef(
     name: Name,
     args: List[(Name, ScalaType)],
     ret: ScalaType,
-    methodBody: List[MethodBody],
-    mod: List[FunMod] = List(),
-    paramClause: Option[TypeParamClauseGroup] = None,
+    body: List[MethodBody],
+    mods: List[FunMod] = List(),
+    clauses: Option[TypeParamClauseGroup] = None,
     comment: Option[ScalaComment] = None,
     isVarArgs: Boolean = false)
-      extends ObjectBody
-
-  implicit val typeParamClauseToDoc: ToDoc[TypeParamClause] = {
-    case TypeParamClause(typ, constraint) =>
-      constraint match {
-        case Nil => typ.toDoc
-        case _   => typ.toDoc + Doc.text(" : ") + Doc.intercalate(Doc.char('&'), constraint.map(_.toDoc))
-      }
-  }
-
-  implicit val typeParamClauseGroupToDoc: ToDoc[TypeParamClauseGroup] = (typeParamClauseGroup: TypeParamClauseGroup) =>
-    typeParamClauseGroup.clauses match {
-      case Nil         => Doc.empty
-      case clauses @ _ => Doc.char('[') + Doc.intercalate(Doc.char(','), clauses.map(_.toDoc)) + Doc.char(']')
-    }
-
-  implicit val objectBodyToDoc: ToDoc[ObjectBody] = {
-    case ObjectBody.Val(name, typ, value, comment) =>
-      val commentDoc = comment.map(_.toDoc + Doc.line).getOrElse(Doc.empty)
-      commentDoc + Doc.text("val") + Doc.space + name.toDoc + Doc.text(": ") + typ.toDoc + Doc.text(
-        " = "
-      ) + value.toDoc
-    case ObjectBody.FunDef(name, args, ret, body, mods, clauses, comment, isVarArgs) =>
+      extends ObjectBody {
+    override def toDoc: Doc = {
       val varargsDoc = if (isVarArgs) {
         Doc.text("*")
       } else {
@@ -79,6 +65,23 @@ object ObjectBody {
       ) + Doc.space + name.toDoc + paramDoc + argDoc + retDoc + Doc.space + Doc.char(
         '='
       ) + Doc.space + bodyDoc
+    }
+
   }
 
+  implicit val typeParamClauseToDoc: ToDoc[TypeParamClause] = {
+    case TypeParamClause(typ, constraint) =>
+      constraint match {
+        case Nil => typ.toDoc
+        case _   => typ.toDoc + Doc.text(" : ") + Doc.intercalate(Doc.char('&'), constraint.map(_.toDoc))
+      }
+  }
+
+  implicit val typeParamClauseGroupToDoc: ToDoc[TypeParamClauseGroup] = (typeParamClauseGroup: TypeParamClauseGroup) =>
+    typeParamClauseGroup.clauses match {
+      case Nil         => Doc.empty
+      case clauses @ _ => Doc.char('[') + Doc.intercalate(Doc.char(','), clauses.map(_.toDoc)) + Doc.char(']')
+    }
+
+  implicit val objectBodyToDoc: ToDoc[ObjectBody] = _.toDoc
 }

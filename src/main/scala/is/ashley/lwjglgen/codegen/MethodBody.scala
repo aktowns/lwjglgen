@@ -1,20 +1,21 @@
 package is.ashley.lwjglgen.codegen
 
-import ToDoc.syntax.ToDocOps
 import org.typelevel.paiges.Doc
 
-sealed trait MethodBody
-object MethodBody {
-  case class FunCall(name: Name, args: List[Either[Name, MethodBody]]) extends MethodBody
+trait MethodCallArgument {
+  def toDoc: Doc
+}
 
-  implicit val methodBodyToDoc: ToDoc[MethodBody] = {
-    case MethodBody.FunCall(name, args) =>
-      name.toDoc + Doc.char('(') + Doc.intercalate(
-        Doc.char(','),
-        args.map {
-          case Left(name)        => name.toDoc
-          case Right(methodBody) => methodBody.toDoc
-        }
-      ) + Doc.char(')')
+sealed trait MethodBody extends MethodCallArgument
+object MethodBody {
+  case class FunCall(name: Name, args: List[MethodCallArgument]) extends MethodBody {
+    override def toDoc: Doc =
+      name.toDoc + Doc.char('(') + Doc.intercalate(Doc.char(','), args.map(_.toDoc)) + Doc.char(')')
   }
+
+  object FunCall {
+    def apply(name: Name, args: MethodCallArgument*): FunCall = FunCall(name, args.toList)
+  }
+
+  implicit val methodBodyToDoc: ToDoc[MethodBody] = _.toDoc
 }

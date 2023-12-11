@@ -4,11 +4,18 @@ import org.typelevel.paiges.Doc
 
 import ToDoc.syntax.*
 
-sealed trait Name
+sealed trait Name extends MethodCallArgument
 object Name {
-  case class Simple(name: String)                              extends Name
-  case class Qualified(parts: List[Name])                      extends Name
-  case class Parametrized(name: Name, params: List[ScalaType]) extends Name
+  case class Simple(name: String) extends Name {
+    override def toDoc: Doc = Doc.text(sanitize(name))
+  }
+  case class Qualified(parts: List[Name]) extends Name {
+    override def toDoc: Doc = Doc.intercalate(Doc.char('.'), parts.map(_.toDoc))
+  }
+  case class Parametrized(name: Name, params: List[ScalaType]) extends Name {
+    override def toDoc: Doc =
+      name.toDoc + Doc.char('[') + Doc.intercalate(Doc.char(','), params.map(_.toDoc)) + Doc.char(']')
+  }
 
   def apply(name: String): Name                     = Simple(name)
   def apply(parts: Name*): Name                     = Qualified(parts.toList)
@@ -69,12 +76,5 @@ object Name {
     }
   }
 
-  implicit val nameToDoc: ToDoc[Name] = (name: Name) =>
-    name match {
-      case Name.Simple(name)    => Doc.text(sanitize(name))
-      case Name.Qualified(name) => Doc.intercalate(Doc.char('.'), name.map(_.toDoc))
-      case Name.Parametrized(name, params) =>
-        name.toDoc + Doc.char('[') + Doc.intercalate(Doc.char(','), params.map(_.toDoc)) + Doc.char(']')
-    }
-
+  implicit val nameToDoc: ToDoc[Name] = _.toDoc
 }
